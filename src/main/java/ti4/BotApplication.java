@@ -24,14 +24,16 @@ import net.dv8tion.jda.api.utils.MemberCachePolicy;
 
 public class BotApplication {
 
-    public static Map<String, Behavior<CommandMessage>> commandHandlers;
+    public static Map<String, Behavior<CommandMessage>> commandHandlers = Map.of(
+        "game", GameCommandActor.create()
+    );
+    public static Map<String, Class<?>> commandClasses = Map.of(
+        "game", GameCommandActor.class
+    );
+
 
     public static void main(String[] args) throws LoginException {
         
-        BotApplication.commandHandlers = Map.of(
-            "game", GameCommandActor.create()
-        );
-
         //BotLogger.log("Mapping commands to actors" + commandHandlers.toString());
 
         ActorSystem<CommandMessage> commandDispatcherSystem = ActorSystem.create(SlashCommandDispatcher.create(BotApplication.commandHandlers), "commands");

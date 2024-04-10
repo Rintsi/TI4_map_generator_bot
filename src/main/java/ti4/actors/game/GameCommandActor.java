@@ -19,6 +19,10 @@ public class GameCommandActor {
         "game join", GameJoinCommandActor.create()
     );
 
+    public static Map<String, Class<?>> subCommandClasses = Map.of(
+        "game join", GameJoinCommandActor.class
+    );
+
     public static Behavior<CommandMessage> create() {
         // Directly return the behavior setup to avoid any confusion
         return Behaviors.receive((context, message) -> {
