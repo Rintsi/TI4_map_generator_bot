@@ -5,6 +5,8 @@ import ti4.actors.CommandAutoCompleteActor;
 import ti4.actors.CommandResponseActor;
 import ti4.actors.SlashCommandDispatcher;
 import ti4.actors.game.GameCommandActor;
+import ti4.buttons.ButtonInteractionContext;
+import ti4.buttons.Buttons;
 import ti4.commands.CommandMessage;
 import ti4.commands.CommandResponse;
 //import ti4.message.BotLogger;
@@ -85,9 +87,9 @@ public class AsyncTI4DiscordBot {
         autoCompleteFunctions.put(commandName, autoCompleteFunction);
     }
 
-    public static Map<String, Consumer<ButtonInteractionEvent>> buttonHandlers = new HashMap<>();
+    public static Map<String, Consumer<ButtonInteractionContext>> buttonHandlers = new HashMap<>();
     
-    public static void registerButtonHandler(String buttonId, Consumer<ButtonInteractionEvent> buttonHandlerFunction) {
+    public static void registerButtonHandler(String buttonId, Consumer<ButtonInteractionContext> buttonHandlerFunction) {
         if(buttonHandlers.containsKey(buttonId)) {
             throw new IllegalArgumentException("Button handler for command " + buttonId + " already exists.");
         }
@@ -199,6 +201,7 @@ public class AsyncTI4DiscordBot {
         AliasHandler.init();
         Storage.init();
         SelectionManager.init();
+        Buttons.init();
         initializeWhitelistedRoles();
 
         // LOAD GAMES

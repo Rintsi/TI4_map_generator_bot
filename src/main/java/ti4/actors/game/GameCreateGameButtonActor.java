@@ -21,6 +21,7 @@ import net.dv8tion.jda.api.interactions.components.buttons.Button;
 import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
 import ti4.AsyncTI4DiscordBot;
 import ti4.actors.AutoCompleteable;
+import ti4.buttons.ButtonInteractionContext;
 import ti4.commands.CommandMessage;
 //import ti4.commands.CommandResponse;
 import ti4.commands.bothelper.CreateGameChannels;
@@ -32,14 +33,14 @@ import ti4.message.MessageHelper;
 
 public class GameCreateGameButtonActor implements AutoCompleteable {
 
-    public static final String createGameChannelsButtonId = "createGameChannels";
+    public static final String createGameChannelsButtonId = "acDiscardFromHand|123"; //"createGameChannels";
 
     public static Behavior<CommandMessage> create() {
 
-        AsyncTI4DiscordBot.registerButtonHandler(
+        /*AsyncTI4DiscordBot.registerButtonHandler(
             GameCreateGameButtonActor.createGameChannelsButtonId, 
             GameCreateGameButtonActor::createGameChannelButtonHandler
-        );
+        );*/
 
         return Behaviors.receive((context, message) -> {
             
@@ -127,7 +128,8 @@ public class GameCreateGameButtonActor implements AutoCompleteable {
         });
     }
 
-    public static void createGameChannelButtonHandler(ButtonInteractionEvent event) {
+    public static void createGameChannelButtonHandler(ButtonInteractionContext context) {
+        ButtonInteractionEvent event = context.getEvent();
         event.getChannel().sendMessage(event.getUser().getEffectiveName() + " pressed the [Create Game] button")
                 .queue();
         Member member = event.getMember();

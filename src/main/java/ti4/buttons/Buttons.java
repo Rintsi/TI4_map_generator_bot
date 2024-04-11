@@ -50,4 +50,8 @@ public class Buttons {
     public static Button red(String buttonID, String buttonLabel) {
         return Button.danger(buttonID, buttonLabel);
     }
+
+    public static void init() {
+        ACDiscardFromHandButton.register();
+    }
 }

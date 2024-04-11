@@ -7,6 +7,7 @@ import java.util.Map;
 import org.apache.commons.lang3.StringUtils;
 
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
+import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 
 public class GameManager {
 
@@ -25,6 +26,18 @@ public class GameManager {
     }
 
     public static Game resolveGameFromEvent(SlashCommandInteractionEvent event) {
+        String channelName = event.getChannel().getName();
+        String gameName = StringUtils.substringBefore(channelName, "-");
+
+        Game game = getInstance().getGame(gameName);
+
+        if(game != null) 
+            return game;
+        
+        return null;
+    }
+
+    public static Game resolveGameFromEvent(ButtonInteractionEvent event) {
         String channelName = event.getChannel().getName();
         String gameName = StringUtils.substringBefore(channelName, "-");
 
