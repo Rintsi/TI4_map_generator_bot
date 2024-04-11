@@ -1,9 +1,7 @@
 package ti4.actors;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.util.List;
-import java.util.Map;
+import java.util.function.Function;
 
 import akka.actor.typed.Behavior;
 import akka.actor.typed.javadsl.AbstractBehavior;
@@ -11,8 +9,8 @@ import akka.actor.typed.javadsl.ActorContext;
 import akka.actor.typed.javadsl.Behaviors;
 import akka.actor.typed.javadsl.Receive;
 import net.dv8tion.jda.api.events.interaction.command.CommandAutoCompleteInteractionEvent;
-import net.dv8tion.jda.api.interactions.commands.Command.Choice;
-import ti4.BotApplication;
+import net.dv8tion.jda.api.interactions.commands.Command;
+import ti4.AsyncTI4DiscordBot;
 import ti4.message.BotLogger;
 
 public class CommandAutoCompleteActor extends AbstractBehavior<CommandAutoCompleteInteractionEvent> {
@@ -31,42 +29,21 @@ public class CommandAutoCompleteActor extends AbstractBehavior<CommandAutoComple
             .build();
     }
 
-    @SuppressWarnings("unchecked")
-    private Behavior<CommandAutoCompleteInteractionEvent> onAutocomplete(CommandAutoCompleteInteractionEvent event) throws ReflectiveOperationException {
-        String commandName = event.getName();
+    private Behavior<CommandAutoCompleteInteractionEvent> onAutocomplete(CommandAutoCompleteInteractionEvent event) {
         String fullCommandName = event.getFullCommandName();
 
-        try {
-            Class<?> rootActor = BotApplication.commandClasses.get(commandName);
-            if (rootActor != null) {
-                Field subCommandField = rootActor.getDeclaredField("subCommandClasses");
-                subCommandField.setAccessible(true);
-                Map<String, Class<?>> subCommandClasses = (Map<String, Class<?>>) subCommandField.get(null); // null for static fields
-                Class<?> subCommandActor = subCommandClasses.get(fullCommandName);
-                
-                if (subCommandActor != null) {// && AutoCompleteable.class.isAssignableFrom(subCommandActor)) {
+        BotLogger.log("CommandAutoCompleteActor received an autocomplete event: " + fullCommandName);
 
-                    Method getAutoCompleteOptionsMethod = subCommandActor.getMethod("getAutoCompleteOptions", String.class);
-                    getAutoCompleteOptionsMethod.setAccessible(true);
+        Function<String, List<Command.Choice>> autoCompleteFunction = AsyncTI4DiscordBot.autoCompleteFunctions.get(fullCommandName);
 
-                    try {
-                        List<Choice> choices = (List<Choice>) getAutoCompleteOptionsMethod.invoke(null, event.getFocusedOption().getName());
-
-                        BotLogger.log("Found subcommand actor: " + subCommandActor.getName());
-                        event.replyChoices(choices).queue();
-                    } catch (Exception e) {
-                        BotLogger.log("Error getting subcommand choices: " + e.getMessage());
-                    }
-                } else {
-                    BotLogger.log("No subcommand actor found for command: " + fullCommandName);
-                }
-            } else {
-                BotLogger.log("No handler found for command: " + fullCommandName);
-            }
-        } catch (NoSuchFieldException | IllegalAccessException | NoSuchMethodException e) {
-            BotLogger.log("Error getting subcommand classes: " + e.getMessage());
-            throw(e);
+        if(autoCompleteFunction != null) {
+            String option = event.getFocusedOption().getName();
+            List<Command.Choice> choices = autoCompleteFunction.apply(option);
+            event.replyChoices(choices).queue();
+        } else {
+            event.getChannel().sendMessage("No autocomplete options available for this command.").queue();
         }
+        
         return this;
     }
 }

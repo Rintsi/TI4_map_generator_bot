@@ -4,6 +4,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.lang3.StringUtils;
+
+import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
+
 public class GameManager {
 
     private static GameManager gameManager;
@@ -20,10 +24,28 @@ public class GameManager {
         return gameManager;
     }
 
+    public static Game resolveGameFromEvent(SlashCommandInteractionEvent event) {
+        String channelName = event.getChannel().getName();
+        String gameName = StringUtils.substringBefore(channelName, "-");
+
+        Game game = getInstance().getGame(gameName);
+
+        if(game != null) 
+            return game;
+        
+        return null;
+    }
+
 
     public Map<String, Game> getGameNameToGame() {
         return gameNameToGame;
     }
+
+    public Map<String, String> getUserNameToGame() {
+        return userNameToGameName;
+    }
+
+    
 
     public void setGameNameToGame(Map<String, Game> gameNameToGame) {
         this.gameNameToGame = gameNameToGame;

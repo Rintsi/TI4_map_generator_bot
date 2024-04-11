@@ -6,14 +6,17 @@ import akka.actor.typed.Behavior;
 import akka.actor.typed.javadsl.Behaviors;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.interactions.commands.Command;
+import ti4.AsyncTI4DiscordBot;
 import ti4.actors.AutoCompleteable;
 import ti4.commands.CommandMessage;
 import ti4.commands.CommandResponse;
 import ti4.message.BotLogger;
 
-public class GameJoinCommandActor implements AutoCompleteable {
+public class GameJoinActor implements AutoCompleteable {
 
     public static Behavior<CommandMessage> create() {
+        AsyncTI4DiscordBot.registerAutoComplete("game join", GameJoinActor::getAutoCompleteOptions);
+
         // Directly return the behavior setup to avoid any confusion
         return Behaviors.receive((context, message) -> {
             

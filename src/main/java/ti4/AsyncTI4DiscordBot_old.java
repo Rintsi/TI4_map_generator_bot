@@ -1,13 +1,73 @@
 package ti4;
 
-import ti4.actors.ButtonInteractionActor;
-import ti4.actors.CommandAutoCompleteActor;
-import ti4.actors.CommandResponseActor;
-import ti4.actors.SlashCommandDispatcher;
-import ti4.actors.game.GameCommandActor;
-import ti4.commands.CommandMessage;
-import ti4.commands.CommandResponse;
-//import ti4.message.BotLogger;
+import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
+import net.dv8tion.jda.api.JDA;
+import net.dv8tion.jda.api.JDABuilder;
+import net.dv8tion.jda.api.OnlineStatus;
+import net.dv8tion.jda.api.entities.Activity;
+import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.Role;
+import net.dv8tion.jda.api.entities.channel.concrete.Category;
+import net.dv8tion.jda.api.requests.GatewayIntent;
+import net.dv8tion.jda.api.requests.restaction.CommandListUpdateAction;
+import net.dv8tion.jda.api.utils.ChunkingFilter;
+import net.dv8tion.jda.api.utils.MemberCachePolicy;
+import ti4.autocomplete.AutoCompleteListener;
+import ti4.buttons.ButtonListener;
+import ti4.commands.CommandManager;
+import ti4.commands.admin.AdminCommand;
+import ti4.commands.agenda.AgendaCommand;
+import ti4.commands.bothelper.BothelperCommand;
+import ti4.commands.button.GenericButtonCommand;
+import ti4.commands.capture.CaptureCommand;
+import ti4.commands.cardsac.ACCardsCommand;
+import ti4.commands.cardspn.PNCardsCommand;
+import ti4.commands.cardsso.SOCardsCommand;
+import ti4.commands.combat.CombatCommand;
+import ti4.commands.custom.CustomCommand;
+import ti4.commands.developer.DeveloperCommand;
+import ti4.commands.ds.DiscordantStarsCommand;
+import ti4.commands.event.EventCommand;
+import ti4.commands.explore.ExploreCommand;
+import ti4.commands.fow.FOWCommand;
+import ti4.commands.franken.FrankenCommand;
+import ti4.commands.game.GameCommand;
+import ti4.commands.help.HelpCommand;
+import ti4.commands.installation.InstallationCommand;
+import ti4.commands.leaders.LeaderCommand;
+import ti4.commands.map.MapCommand;
+import ti4.commands.milty.MiltyCommand;
+import ti4.commands.planet.PlanetCommand;
+import ti4.commands.player.PlayerCommand;
+import ti4.commands.search.SearchCommand;
+import ti4.commands.special.SpecialCommand;
+import ti4.commands.statistics.StatisticsCommand;
+import ti4.commands.status.StatusCommand;
+import ti4.commands.tech.TechCommand;
+import ti4.commands.tokens.AddCC;
+import ti4.commands.tokens.AddFrontierTokens;
+import ti4.commands.tokens.AddToken;
+import ti4.commands.tokens.RemoveAllCC;
+import ti4.commands.tokens.RemoveCC;
+import ti4.commands.tokens.RemoveToken;
+import ti4.commands.uncategorized.*;
+import ti4.commands.units.AddUnitDamage;
+import ti4.commands.units.AddUnits;
+import ti4.commands.units.MoveUnits;
+import ti4.commands.units.RemoveAllUnitDamage;
+import ti4.commands.units.RemoveAllUnits;
+import ti4.commands.units.RemoveUnitDamage;
+import ti4.commands.units.RemoveUnits;
 import ti4.generator.Mapper;
 import ti4.generator.PositionMapper;
 import ti4.generator.TileHelper;
@@ -19,42 +79,16 @@ import ti4.map.GameSaveLoadManager;
 import ti4.message.BotLogger;
 import ti4.message.MessageHelper;
 import ti4.selections.SelectionManager;
+import ti4.selections.SelectionMenuListener;
 
-import java.sql.Timestamp;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.function.Supplier;
+public class AsyncTI4DiscordBot_old {
 
-import javax.security.auth.login.LoginException;
-
-import akka.actor.typed.ActorSystem;
-import akka.actor.typed.Behavior;
-import net.dv8tion.jda.api.JDA;
-import net.dv8tion.jda.api.JDABuilder;
-import net.dv8tion.jda.api.OnlineStatus;
-import net.dv8tion.jda.api.entities.Activity;
-import net.dv8tion.jda.api.entities.Guild;
-import net.dv8tion.jda.api.entities.Role;
-import net.dv8tion.jda.api.entities.channel.concrete.Category;
-import net.dv8tion.jda.api.events.interaction.command.CommandAutoCompleteInteractionEvent;
-import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
-import net.dv8tion.jda.api.interactions.commands.Command;
-import net.dv8tion.jda.api.requests.GatewayIntent;
-import net.dv8tion.jda.api.utils.ChunkingFilter;
-import net.dv8tion.jda.api.utils.MemberCachePolicy;
-
-public class AsyncTI4DiscordBot {
+    public static final long START_TIME_MILLISECONDS = System.currentTimeMillis();
+    public static final ExecutorService THREAD_POOL = Executors.newFixedThreadPool(
+        Math.max(2, Runtime.getRuntime().availableProcessors()));
+    public static final List<Role> adminRoles = new ArrayList<>();
+    public static final List<Role> developerRoles = new ArrayList<>();
+    public static final List<Role> bothelperRoles = new ArrayList<>();
 
     public static JDA jda;
     public static String userID;
@@ -68,46 +102,10 @@ public class AsyncTI4DiscordBot {
     public static Guild guildCommunityPlays;
     public static final Set<Guild> guilds = new HashSet<>();
 
-    public static final long START_TIME_MILLISECONDS = System.currentTimeMillis();
-    public static final ExecutorService THREAD_POOL = Executors.newFixedThreadPool(
-        Math.max(2, Runtime.getRuntime().availableProcessors())
-    );
-    public static final List<Role> adminRoles = new ArrayList<>();
-    public static final List<Role> developerRoles = new ArrayList<>();
-    public static final List<Role> bothelperRoles = new ArrayList<>();
-
-    public static Map<String, Function<String, List<Command.Choice>>> autoCompleteFunctions = new HashMap<>();
-    
-    public static void registerAutoComplete(String commandName, Function<String, List<Command.Choice>> autoCompleteFunction) {
-        if(autoCompleteFunctions.containsKey(commandName)) {
-            throw new IllegalArgumentException("AutoComplete function for command " + commandName + " already exists.");
-        }
-        autoCompleteFunctions.put(commandName, autoCompleteFunction);
-    }
-
-    public static Map<String, Consumer<ButtonInteractionEvent>> buttonHandlers = new HashMap<>();
-    
-    public static void registerButtonHandler(String buttonId, Consumer<ButtonInteractionEvent> buttonHandlerFunction) {
-        if(buttonHandlers.containsKey(buttonId)) {
-            throw new IllegalArgumentException("Button handler for command " + buttonId + " already exists.");
-        }
-        buttonHandlers.put(buttonId, buttonHandlerFunction);
-    }
-
-    public static Map<String, Behavior<CommandMessage>> commandHandlers = Map.of(
-        "game", GameCommandActor.create()
-    );
-
-    public static void main(String[] args) throws LoginException {
+    public static void main(String[] args) {
         GlobalSettings.loadSettings();
         GlobalSettings.setSetting(ImplementedSettings.READY_TO_RECEIVE_COMMANDS, false);
-        
-        ActorSystem<CommandMessage> commandDispatcherSystem = ActorSystem.create(SlashCommandDispatcher.create(AsyncTI4DiscordBot.commandHandlers), "commands");
-        ActorSystem<CommandResponse> commmandResponseActorSystem = ActorSystem.create(CommandResponseActor.create(), "commandResponses");
-        ActorSystem<ButtonInteractionEvent> buttonIneractionActorSystem = ActorSystem.create(ButtonInteractionActor.create(), "interactions");
-        ActorSystem<CommandAutoCompleteInteractionEvent> commandAutoCompleteActor = ActorSystem.create(CommandAutoCompleteActor.create(), "autocompletes");
 
-        // Initialize JDA and connect your bot
         jda = JDABuilder.createDefault(args[0])
             .enableIntents(GatewayIntent.GUILD_MEMBERS)
             .enableIntents(GatewayIntent.MESSAGE_CONTENT)
@@ -115,8 +113,14 @@ public class AsyncTI4DiscordBot {
             .setMemberCachePolicy(MemberCachePolicy.ALL)
             .setChunkingFilter(ChunkingFilter.ALL)
             .setEnableShutdownHook(false)
-            .addEventListeners(new BotSystem(commandDispatcherSystem, commmandResponseActorSystem, buttonIneractionActorSystem, commandAutoCompleteActor))
             .build();
+
+        jda.addEventListener(
+            new MessageListener(),
+            new ButtonListener(),
+            new UserJoinServerListener(),
+            new AutoCompleteListener(),
+            new SelectionMenuListener());
 
         try {
             jda.awaitReady();
@@ -131,8 +135,65 @@ public class AsyncTI4DiscordBot {
 
         MessageHelper.sendMessageToBotLogWebhook("# `" + new Timestamp(System.currentTimeMillis()) + "`  BOT IS STARTING UP");
 
+        CommandManager commandManager = CommandManager.getInstance();
+        commandManager.addCommand(new AddUnits());
+        commandManager.addCommand(new RemoveUnits());
+        commandManager.addCommand(new RemoveAllUnits());
+        commandManager.addCommand(new AllInfo());
+        commandManager.addCommand(new CardsInfo());
+        commandManager.addCommand(new ShowGame());
+        commandManager.addCommand(new ShowDistances());
+        commandManager.addCommand(new DeleteGame());
+        commandManager.addCommand(new AddCC());
+        commandManager.addCommand(new RemoveCC());
+        commandManager.addCommand(new RemoveAllCC());
+        commandManager.addCommand(new AddFrontierTokens());
+        commandManager.addCommand(new MoveUnits());
+        commandManager.addCommand(new RemoveToken());
+        commandManager.addCommand(new AddToken());
+        commandManager.addCommand(new AddUnitDamage());
+        commandManager.addCommand(new RemoveUnitDamage());
+        commandManager.addCommand(new RemoveAllUnitDamage());
+
+        commandManager.addCommand(new MapCommand());
+        commandManager.addCommand(new HelpCommand());
+        commandManager.addCommand(new SearchCommand());
+        commandManager.addCommand(new ExploreCommand());
+        commandManager.addCommand(new AdminCommand());
+
+        commandManager.addCommand(new DeveloperCommand());
+        commandManager.addCommand(new BothelperCommand());
+        commandManager.addCommand(new PlayerCommand());
+        commandManager.addCommand(new GameCommand());
+
+        commandManager.addCommand(new ACCardsCommand());
+        commandManager.addCommand(new PNCardsCommand());
+        commandManager.addCommand(new SOCardsCommand());
+        commandManager.addCommand(new StatusCommand());
+        commandManager.addCommand(new AgendaCommand());
+        commandManager.addCommand(new EventCommand());
+
+        commandManager.addCommand(new SpecialCommand());
+        commandManager.addCommand(new LeaderCommand());
+        commandManager.addCommand(new CombatCommand());
+        commandManager.addCommand(new CustomCommand());
+        commandManager.addCommand(new FOWCommand());
+        commandManager.addCommand(new InstallationCommand());
+        commandManager.addCommand(new MiltyCommand());
+        commandManager.addCommand(new FrankenCommand());
+        commandManager.addCommand(new CaptureCommand());
+        commandManager.addCommand(new GenericButtonCommand());
+        commandManager.addCommand(new DiscordantStarsCommand());
+        commandManager.addCommand(new StatisticsCommand());
+        commandManager.addCommand(new TechCommand());
+        commandManager.addCommand(new PlanetCommand());
+        commandManager.addCommand(new SelectionBoxDemo());
+
         // Primary HUB Server
         guildPrimary = jda.getGuildById(args[2]);
+        CommandListUpdateAction commands = guildPrimary.updateCommands();
+        commandManager.getCommandList().forEach(command -> command.registerCommands(commands));
+        commands.queue();
         BotLogger.log("`" + new Timestamp(System.currentTimeMillis()) + "`  BOT STARTED UP: " + guildPrimary.getName());
         guilds.add(guildPrimary);
 
@@ -140,6 +201,9 @@ public class AsyncTI4DiscordBot {
         if (args.length >= 4) {
             guildCommunityPlays = jda.getGuildById(args[3]);
             if (guildCommunityPlays != null) {
+                CommandListUpdateAction commandsC = guildCommunityPlays.updateCommands();
+                commandManager.getCommandList().forEach(command -> command.registerCommands(commandsC));
+                commandsC.queue();
                 BotLogger.log("`" + new Timestamp(System.currentTimeMillis()) + "`  BOT STARTED UP: " + guildCommunityPlays.getName());
                 guilds.add(guildCommunityPlays);
             }
@@ -149,6 +213,9 @@ public class AsyncTI4DiscordBot {
         if (args.length >= 5) {
             guildFogOfWar = jda.getGuildById(args[4]);
             if (guildFogOfWar != null) {
+                CommandListUpdateAction commandsD = guildFogOfWar.updateCommands();
+                commandManager.getCommandList().forEach(command -> command.registerCommands(commandsD));
+                commandsD.queue();
                 BotLogger.log("`" + new Timestamp(System.currentTimeMillis()) + "`  BOT STARTED UP: " + guildFogOfWar.getName());
                 guilds.add(guildFogOfWar);
             }
@@ -158,6 +225,9 @@ public class AsyncTI4DiscordBot {
         if (args.length >= 6) {
             guildSecondary = jda.getGuildById(args[5]);
             if (guildSecondary != null) {
+                CommandListUpdateAction commandsD = guildSecondary.updateCommands();
+                commandManager.getCommandList().forEach(command -> command.registerCommands(commandsD));
+                commandsD.queue();
                 BotLogger.log("`" + new Timestamp(System.currentTimeMillis()) + "`  BOT STARTED UP: " + guildSecondary.getName());
                 guilds.add(guildSecondary);
             }
@@ -167,6 +237,9 @@ public class AsyncTI4DiscordBot {
         if (args.length >= 7) {
             guildTertiary = jda.getGuildById(args[6]);
             if (guildTertiary != null) {
+                CommandListUpdateAction commandsD = guildTertiary.updateCommands();
+                commandManager.getCommandList().forEach(command -> command.registerCommands(commandsD));
+                commandsD.queue();
                 BotLogger.log("`" + new Timestamp(System.currentTimeMillis()) + "`  BOT STARTED UP: " + guildTertiary.getName());
                 guilds.add(guildTertiary);
             }
@@ -176,6 +249,9 @@ public class AsyncTI4DiscordBot {
         if (args.length >= 8) {
             guildQuaternary = jda.getGuildById(args[7]);
             if (guildQuaternary != null) {
+                CommandListUpdateAction commandsD = guildQuaternary.updateCommands();
+                commandManager.getCommandList().forEach(command -> command.registerCommands(commandsD));
+                commandsD.queue();
                 BotLogger.log("`" + new Timestamp(System.currentTimeMillis()) + "`  BOT STARTED UP: " + guildQuaternary.getName());
                 guilds.add(guildQuaternary);
             }
@@ -185,12 +261,15 @@ public class AsyncTI4DiscordBot {
         if (args.length >= 9) {
             guildQuinary = jda.getGuildById(args[8]);
             if (guildQuinary != null) {
+                CommandListUpdateAction commandsD = guildQuinary.updateCommands();
+                commandManager.getCommandList().forEach(command -> command.registerCommands(commandsD));
+                commandsD.queue();
                 BotLogger.log("`" + new Timestamp(System.currentTimeMillis()) + "`  BOT STARTED UP: " + guildQuinary.getName());
                 guilds.add(guildQuinary);
             }
         }
 
-         // LOAD DATA
+        // LOAD DATA
         BotLogger.log("`" + new Timestamp(System.currentTimeMillis()) + "`  LOADING DATA");
         jda.getPresence().setActivity(Activity.customStatus("STARTING UP: Loading Data"));
         TileHelper.init();
@@ -240,6 +319,16 @@ public class AsyncTI4DiscordBot {
         }));
     }
 
+    /**
+     * Initializes the whitelisted roles for the bot, including admin, developer, and bothelper roles.
+     * <ul>
+     * <li>Admins can execute /admin, /developer, and /bothelper commands</li>
+     * <li>Developers can execute /developer and /bothelper commands</li>
+     * <li>Bothelpers can execute /bothelper commands</li>
+     * </ul>
+     *
+     * Add your test server's role ID to enable access to these commands on your server
+     */
     private static void initializeWhitelistedRoles() {
         //ADMIN ROLES
         adminRoles.add(jda.getRoleById("943596173896323072")); // Async Primary (Hub)
@@ -309,4 +398,5 @@ public class AsyncTI4DiscordBot {
             .filter(category -> category.getName().toUpperCase().startsWith("PBD #"))
             .toList();
     }
+
 }

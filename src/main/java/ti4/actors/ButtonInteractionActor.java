@@ -1,11 +1,14 @@
 package ti4.actors;
 
+import java.util.function.Consumer;
+
 import akka.actor.typed.Behavior;
 import akka.actor.typed.javadsl.AbstractBehavior;
 import akka.actor.typed.javadsl.ActorContext;
 import akka.actor.typed.javadsl.Behaviors;
 import akka.actor.typed.javadsl.Receive;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
+import ti4.AsyncTI4DiscordBot;
 
 public class ButtonInteractionActor extends AbstractBehavior<ButtonInteractionEvent> {
     
@@ -20,15 +23,22 @@ public class ButtonInteractionActor extends AbstractBehavior<ButtonInteractionEv
     @Override
     public Receive<ButtonInteractionEvent> createReceive() {
         return newReceiveBuilder()
-            .onMessage(ButtonInteractionEvent.class, this::onButtonInteraction) // Updated type parameter
+            .onMessage(ButtonInteractionEvent.class, this::onButtonInteraction)
             .build();
     }
 
     private Behavior<ButtonInteractionEvent> onButtonInteraction(ButtonInteractionEvent event) {
-        // Handle the button interaction
-        // Example: Acknowledge the button click and send a response
-        event.deferEdit().queue(); // Acknowledge the button click
-        event.getChannel().sendMessage("Button clicked!").queue(); // Respond to the interaction
+
+        String buttonId = event.getComponentId();
+
+        Consumer<ButtonInteractionEvent> buttonHandler = AsyncTI4DiscordBot.buttonHandlers.get(buttonId);
+
+        if(buttonHandler != null) {
+            buttonHandler.accept(event);
+        } else {
+            event.getChannel().sendMessage("No handler available for this button.").queue();
+        }
+ 
         return this;
     }
 }

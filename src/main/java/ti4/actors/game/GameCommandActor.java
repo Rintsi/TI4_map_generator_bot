@@ -1,26 +1,24 @@
 package ti4.actors.game;
 
-
 import java.util.Map;
 
 import akka.actor.typed.ActorRef;
 import akka.actor.typed.Behavior;
 import akka.actor.typed.javadsl.Behaviors;
+
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
-//import net.dv8tion.jda.api.interactions.components.buttons.Button;
+
 import ti4.commands.CommandMessage;
 import ti4.commands.CommandResponse;
 //import ti4.commands.CommandResponse;
-import ti4.message.BotLogger;
+//import ti4.message.BotLogger;
 
 public class GameCommandActor {
 
     public static Map<String, Behavior<CommandMessage>> gameCommandHandlers = Map.of(
-        "game join", GameJoinCommandActor.create()
-    );
-
-    public static Map<String, Class<?>> subCommandClasses = Map.of(
-        "game join", GameJoinCommandActor.class
+        "game create_game_button", GameCreateGameButtonActor.create(),
+        "game join", GameJoinActor.create(),
+        "game add", GameAddActor.create()
     );
 
     public static Behavior<CommandMessage> create() {
@@ -30,12 +28,11 @@ public class GameCommandActor {
             SlashCommandInteractionEvent event = message.event;
             String fullCommandName = event.getFullCommandName();
             
-            // Log receipt of command
-            BotLogger.log("GameCommandActor received a command: " + fullCommandName);
+            //BotLogger.log("GameCommandActor received a command: " + fullCommandName);
 
             Behavior<CommandMessage> handler = GameCommandActor.gameCommandHandlers.get(fullCommandName);
             if (handler != null) {
-                BotLogger.log("GameCommandActor found a handler for the command: " + fullCommandName);
+                //BotLogger.log("GameCommandActor found a handler for the command: " + fullCommandName);
                 ActorRef<CommandMessage> actorRef = context.spawn(handler, fullCommandName.replace(" ", "_"));
                 actorRef.tell(message);
             } else {
